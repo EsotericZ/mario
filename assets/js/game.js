@@ -75,6 +75,23 @@ scene("game", () => {
         origin('bot')
     ])
 
+    const moveSpeed = 120;
+    const jumpForce = 360;
+
+    keyDown('left', () => {
+        player.move(-moveSpeed, 0)
+    })
+    
+    keyDown('right', () => {
+        player.move(moveSpeed, 0)
+    })
+
+    keyPress('space', () => {
+        if(player.grounded()) {
+            player.jump(jumpForce)
+        }
+    })
+
 })
 
 start("game")
