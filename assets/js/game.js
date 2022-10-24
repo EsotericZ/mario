@@ -6,6 +6,11 @@ kaboom({
     clearColor: [0, 0, 0, 1],
 })
 
+const moveSpeed = 120;
+const jumpForce = 360;
+const bigJumpForce = 450;
+let currentJumpForce = jumpForce;
+
 loadRoot('https://i.imgur.com/')
 loadSprite('coin', 'wbKxhcd.png')
 loadSprite('evil-shroom', 'KPO3fR9.png')
@@ -40,7 +45,7 @@ scene("game", () => {
         width: 20,
         height: 20,
         '=': [sprite('block'), solid()],
-        '$': [sprite('coin')],
+        '$': [sprite('coin'), 'coin'],
         '%': [sprite('surprise'), solid(), 'coin-surprise'],
         '*': [sprite('surprise'), solid(), 'mushroom-surprise'],
         '}': [sprite('unboxed'), solid()],
@@ -49,7 +54,7 @@ scene("game", () => {
         '-': [sprite('pipe-top-left'), solid(), scale(0.5)],
         '+': [sprite('pipe-top-right'), solid(), scale(0.5)],
         '^': [sprite('evil-shroom'), solid()],
-        '#': [sprite('mushroom'), solid()],
+        '#': [sprite('mushroom'), solid(), 'mushroom', body()],
     }
 
     const gameLevel = addLevel(map, levelCfg)
@@ -68,15 +73,75 @@ scene("game", () => {
         pos(400, 6)
     ])
 
+    function big() {
+        let timer = 0
+        let isBig = false
+        return {
+            update() {
+                if (isBig) {
+                    currentJumpForce = bigJumpForce;
+                    timer -= dt()
+                    if (timer <= 0) {
+                        this.smallify()
+                    }
+                }
+            },
+            isBig() {
+                return isBig
+            }, 
+            smallify() {
+                this.scale = vec2(1)
+                currentJumpForce = jumpForce;
+                timer = 0
+                isBig = false
+            },
+            biggify(time) {
+                this.scale = vec2(2)
+                timer = time
+                isBig = true
+            }
+        }
+    }
+
     const player = add([
         sprite('mario'), solid(),
         pos(30, 0),
         body(),
+        big(),
         origin('bot')
     ])
 
-    const moveSpeed = 120;
-    const jumpForce = 360;
+    action('mushroom', (m) => {
+        m.move(30, 0)
+    })
+
+    player.on("headbump", (obj) => {
+        if (obj.is('coin-surprise')) {
+            gameLevel.spawn('$', obj.gridPos.sub(0, 1))
+            destroy(obj)
+            gameLevel.spawn('}', obj.gridPos.sub(0, 0))
+        }
+        if (obj.is('mushroom-surprise')) {
+            gameLevel.spawn('#', obj.gridPos.sub(0, 1))
+            destroy(obj)
+            gameLevel.spawn('}', obj.gridPos.sub(0, 0))
+        }
+    })
+
+    player.collides('mushroom', m => {
+        destroy(m)
+        player.biggify(6)
+    })
+
+    player.collides('coin', c => {
+        destroy(c)
+        scoreLabel.value ++
+        scoreLabel.text = scoreLabel.value
+    })
+
+    player.collides('dangerous', d => {
+        go('lose', {score: scoreLabel.value})
+    })
 
     keyDown('left', () => {
         player.move(-moveSpeed, 0)
@@ -88,10 +153,13 @@ scene("game", () => {
 
     keyPress('space', () => {
         if(player.grounded()) {
-            player.jump(jumpForce)
+            player.jump(currentJumpForce)
         }
     })
+})
 
+scene('lose', ({ score }) => {
+    add([text(score, 32), origin('center'), pos(width()/2, height()/2)])
 })
 
 start("game")
